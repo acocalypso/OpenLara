@@ -1,0 +1,42 @@
+win_x64:
+  name: Windows x64
+  runs-on: windows-latest
+  env:
+    RELEASE_DIRECTORY: ${{ github.workspace }}/tmp/OpenLara_Release
+    RELEASE_FILE_README: ${{ github.workspace }}/tmp/OpenLara_Release/readme.txt
+  steps:
+    - name: Retrieve sources
+      uses: actions/checkout@v3
+    - name: Install MinGW
+      run: |
+        curl -LO https://jaist.dl.sourceforge.net/project/mingw-w64/Toolchains%20targetting%20Win32/Personal%20Builds/mingw-builds/8.1.0/threads-posix/dwarf/i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z
+        7z x i686-8.1.0-release-posix-dwarf-rt_v6-rev0.7z -oC:\MinGW
+    - name: Install dependencies
+      run: |
+        choco install -y zip
+    - name: Build
+      run: |
+        C:\MinGW\bin\mingw32-g++ -static-libstdc++ -static-libgcc -O3 -s -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections -Wl,--gc-sections -DWIN32 -DNDEBUG -DNO_TOUCH_SUPPORT -I../../libs/ main.cpp ../../libs/stb_vorbis/stb_vorbis.c ../../libs/minimp3/minimp3.cpp ../../libs/tinf/tinflate.c -I../../ -o../../../bin/OpenLara_mingw.exe -lopengl32 -lwinmm -lwsock32 -lgdi32 -lm
+      working-directory: src/platform/win
+    - name: Create archive
+      run: |
+        mkdir -p ${{ env.RELEASE_DIRECTORY }}
+        copy bin\OpenLara.exe ${{ env.RELEASE_DIRECTORY }}
+        echo "Instructions:" > ${{ env.RELEASE_FILE_README }}
+        echo "STEP 1: Let's assume that you own the original game, so download and unzip (\"extract here\") these archives:" >> ${{ env.RELEASE_FILE_README }}
+        echo "    http://xproger.info/projects/OpenLara/files/TR1_data.7z" >> ${{ env.RELEASE_FILE_README }}
+        echo "    http://xproger.info/projects/OpenLara/files/TR1_audio.7z" >> ${{ env.RELEASE_FILE_README }}
+        echo "STEP 2: Copy the extracted folders (audio, PSXDATA, DELDATA & FMV) next to the OpenLara file" >> ${{ env.RELEASE_FILE_README }}
+        echo "STEP 3: Run OpenLara application and enjoy the game!" >> ${{ env.RELEASE_FILE_README }}
+        echo "" >> ${{ env.RELEASE_FILE_README }}
+        echo "YouTube: https://youtube.com/c/TimurGagiev" >> ${{ env.RELEASE_FILE_README }}
+        echo "Discord: https://discord.gg/EF8JaQB" >> ${{ env.RELEASE_FILE_README }}
+        echo "Telegram: https://t.me/openlara" >> ${{ env.RELEASE_FILE_README }}
+        cd ${{ env.RELEASE_DIRECTORY }} && 7z a OpenLara_win.zip *
+    - name: Release (only when pushing to the master branch)
+      uses: softprops/action-gh-release@v1
+      if: ${{ github.ref == 'refs/heads/master' }}
+      with:
+        files: ${{ env.RELEASE_DIRECTORY }}/OpenLara_win.zip
+        name: Continuous build
+        tag_name: continuous-build
